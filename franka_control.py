@@ -36,10 +36,9 @@ if __name__ == '__main__':
 
     franka = Franka(args.host)
     franka.set_home_pose()
-    input('press enter to move')
 
-    travelbox = TravleBox(0.5, 0.0, 0.4, 0.2, 0.05)
-    travelbox.generate_path(direction='clockwise') #counterclockwise  clockwise
+    travelbox = TravleBox(0.55, 0.3, 0.4, 0.3, 0.03)
+    travelbox.generate_path(direction='counterclockwise') #counterclockwise  clockwise
 
     ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
     path_x, path_y, path_pan = travelbox.get_path(ee_trans[0], ee_trans[1])
@@ -49,18 +48,27 @@ if __name__ == '__main__':
     plt.scatter(path_x, path_y, color='g', s=5)
     # plt.show()
 
+    # ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
+    # franka.set_ee_pose_plane(path_x[0], path_y[0], ee_trans[2], path_pan[0])
+    # franka.open_gripper()
+    # input('press enter to move')
+    sleep(3)
+
     idx = 0
     while idx != len(path_x) -1:
         ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
         idx = get_target_idx(idx, path_x, path_y, path_pan, ee_trans[0], ee_trans[1], ee_rpy[2])
-        franka.set_ee_pose_plane(path_x[idx], path_y[idx], path_pan[idx])
+        franka.set_ee_pose_plane(path_x[idx], path_y[idx], ee_trans[2], path_pan[idx])
+        franka.close_gripper()
+
         print(idx, path_x[idx], path_y[idx], path_pan[idx])
 
-        plt.scatter(ee_trans[0], ee_trans[1], color='r', s=5)
-        plt.scatter(path_x[idx], path_y[idx], color='b', s=5)
+        # plt.scatter(ee_trans[0], ee_trans[1], color='r', s=5)
+        # plt.scatter(path_x[idx], path_y[idx], color='b', s=5)
+        sleep(0.01)
 
-        # print()
-        sleep(0.1)
+    sleep(0.5)
+    franka.open_gripper()
     print('done!')
 
     plt.gca().set_aspect('equal', adjustable='box')

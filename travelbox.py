@@ -262,14 +262,14 @@ class TravleBox:
             pan_path.append(self.pan_sample[idx])
 
             # print(self.x_box, self.y_box, self.w_box, self.h_box)
-            if self.x_sample[idx] > (self.x_box+self.h_box/2-self.r_box):
+            if self.x_sample[idx] > (self.x_box+self.h_box/2-(self.r_box*2)):
                 print('stop', len(x_path))
                 break
 
         return np.array(x_path), np.array(y_path), np.array(pan_path)
 
 
-    def generate_path(self, path_steps=100, direction='clockwise'):
+    def generate_path(self, path_steps=50, direction='clockwise'):
         self.path_steps = path_steps
 
         if direction == 'counterclockwise':
@@ -278,9 +278,6 @@ class TravleBox:
         else:
             x_sample, y_sample = sample_points_from_path(np.flip(self.x_coords), np.flip(self.y_coords), path_steps) # clockwise
             pan_shift = -math.pi/2
-
-        # for x, y in zip(self.x_sample, self.y_sample):
-        #     print(x, y)
 
         tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
         pan_sample = np.arctan2(tangents_y, tangents_x)
@@ -292,7 +289,5 @@ class TravleBox:
         self.tangents_y = tangents_y
 
         # plot(x_sample, y_sample, tangents_x, tangents_y)
-
-        # return x_sample, y_sample, pan_sample
 
 # get_trajectory()
