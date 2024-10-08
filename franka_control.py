@@ -67,7 +67,8 @@ if __name__ == '__main__':
         # plt.scatter(path_x[idx], path_y[idx], color='b', s=5)
         sleep(0.01)
 
-    sleep(0.5)
+    # sleep(0.5)
+    franka.robot.join_motion()
     franka.open_gripper()
     print('done!')
 
