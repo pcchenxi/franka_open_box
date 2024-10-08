@@ -3,7 +3,7 @@ from time import sleep
 from argparse import ArgumentParser
 from scipy.spatial.transform import Rotation
 from franky import Robot, Gripper
-from franky import Affine, JointWaypointMotion, JointWaypoint, CartesianMotion, ReferenceType, CartesianWaypointMotion, CartesianWaypoint, CartesianState
+from franky import Affine, JointWaypointMotion, JointWaypoint, CartesianMotion, ReferenceType, CartesianWaypointMotion, CartesianWaypoint
 
 class Franka:
     def __init__(self, robot_ip, relative_dynamics_factor=0.2) -> None:
@@ -11,6 +11,10 @@ class Franka:
         self.gripper = Gripper(robot_ip)
         self.robot.relative_dynamics_factor = relative_dynamics_factor
         self.relative_dynamics_factor = relative_dynamics_factor
+
+        imp_value = 300
+        self.robot.set_joint_impedance([imp_value, imp_value, imp_value, imp_value, imp_value, imp_value, imp_value])
+
         # quat = Rotation.from_euler('xyz', [math.pi, 0, -math.pi/4]).as_quat()
 
         # m9 = CartesianWaypointMotion([

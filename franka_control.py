@@ -74,19 +74,3 @@ if __name__ == '__main__':
     plt.gca().set_aspect('equal', adjustable='box')
     plt.grid(True)    
     plt.show()
-
-    # for x,y,pan in zip(path_x, path_y, path_pan):
-    #     print(x, y, pan)
-    #     franka.set_ee_pose_plane(x,y,pan)
-    #     ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
-    #     print(ee_trans[0]-x, ee_trans[1]-y)
-
-    # while True:
-    #     state = robot.state
-    #     robot_pose = robot.current_pose
-    #     print(get_eepose())
-    #     # print('\nPose: ', robot_pose.end_effector_pose)
-    #     # print('O_TT_E: ', state.O_T_EE)
-    #     # print('Joints: ', state.q)
-    #     # print('Elbow: ', state.elbow)
-    #     sleep(0.05)
