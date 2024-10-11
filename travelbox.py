@@ -4,6 +4,144 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 
+def rotation_matrix_from_rpy(roll, pitch, yaw):
+    """
+    Compute the rotation matrix from roll, pitch, and yaw angles.
+    
+    Parameters:
+    roll, pitch, yaw: Roll, pitch, and yaw angles in radians
+    
+    Returns:
+    3x3 rotation matrix
+    """
+    R_x = np.array([[1, 0, 0],
+                    [0, np.cos(roll), -np.sin(roll)],
+                    [0, np.sin(roll), np.cos(roll)]])
+    
+    R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)],
+                    [0, 1, 0],
+                    [-np.sin(pitch), 0, np.cos(pitch)]])
+    
+    R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+                    [np.sin(yaw), np.cos(yaw), 0],
+                    [0, 0, 1]])
+    
+    # Total rotation matrix R = R_z * R_y * R_x
+    R_total = np.dot(R_z, np.dot(R_y, R_x))
+    
+    return R_total
+
+def extract_rpy_from_rotation_matrix(R):
+    """
+    Extract roll, pitch, and yaw from the rotation matrix.
+    
+    Parameters:
+    R: 3x3 rotation matrix
+    
+    Returns:
+    roll, pitch, yaw: Roll, pitch, and yaw angles in radians
+    """
+    pitch = np.arctan2(-R[2, 0], np.sqrt(R[0, 0]**2 + R[1, 0]**2))
+    yaw = np.arctan2(R[1, 0], R[0, 0])
+    roll = np.arctan2(R[2, 1], R[2, 2])
+    
+    return roll, pitch, yaw
+
+def rotate_box_y_axis(roll, pitch, yaw, rotation_angle_deg):
+    """
+    Rotate the box around the y-axis by a specified angle and compute the new roll, pitch, and yaw.
+    
+    Parameters:
+    roll, pitch, yaw: Initial roll, pitch, and yaw angles in radians
+    rotation_angle_deg: Rotation angle around the y-axis in degrees
+    
+    Returns:
+    new_roll, new_pitch, new_yaw: New roll, pitch, and yaw angles in radians after the rotation
+    """
+    rotation_angle_rad = np.radians(rotation_angle_deg)
+    R_y = np.array([[np.cos(rotation_angle_rad), 0, np.sin(rotation_angle_rad)],
+                    [0, 1, 0],
+                    [-np.sin(rotation_angle_rad), 0, np.cos(rotation_angle_rad)]])
+    
+    # Arrays to store the new roll, pitch, and yaw values
+    new_roll_array = np.zeros_like(roll)
+    new_pitch_array = np.zeros_like(pitch)
+    new_yaw_array = np.zeros_like(yaw)
+    
+    # Iterate through each set of roll, pitch, and yaw angles
+    for i in range(len(roll)):
+        # Convert the roll, pitch, and yaw for the current element to a rotation matrix
+        R_initial = rotation_matrix_from_rpy(roll[i], pitch[i], yaw[i])
+        
+        # Apply the y-axis rotation to the initial rotation matrix
+        R_final = np.dot(R_y, R_initial)
+        
+        # Extract the new roll, pitch, and yaw from the final rotation matrix
+        new_roll, new_pitch, new_yaw = extract_rpy_from_rotation_matrix(R_final)
+        
+        # Store the new values in the arrays
+        new_roll_array[i] = new_roll
+        new_pitch_array[i] = new_pitch
+        new_yaw_array[i] = new_yaw
+    
+    return new_roll_array, new_pitch_array, new_yaw_array
+
+def rotation_matrix(roll, pitch, yaw):
+    """
+    计算总的旋转矩阵 (roll, pitch, yaw).
+    
+    参数:
+    roll, pitch, yaw: 滚转, 俯仰, 偏航 角度（弧度）
+    
+    返回:
+    3x3 旋转矩阵
+    """
+    # Rotation matrices around x (roll), y (pitch), and z (yaw)
+    R_x = np.array([[1, 0, 0],
+                    [0, np.cos(roll), -np.sin(roll)],
+                    [0, np.sin(roll), np.cos(roll)]])
+    
+    R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)],
+                    [0, 1, 0],
+                    [-np.sin(pitch), 0, np.cos(pitch)]])
+    
+    R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+                    [np.sin(yaw), np.cos(yaw), 0],
+                    [0, 0, 1]])
+    
+    # Total rotation matrix R = R_z * R_y * R_x
+    R_total = np.dot(R_z, np.dot(R_y, R_x))
+    
+    return R_total
+
+
+def plot_gripper_frame(ax, origin, R, scale=1.0):
+    """
+    绘制夹爪的局部坐标系 (x, y, z 轴) 在给定点的位置.
+    
+    参数:
+    ax: Matplotlib 3D 轴
+    origin: 夹爪的起始位置 [x, y, z]
+    R: 旋转矩阵
+    scale: 轴的缩放因子
+    """
+    # Local frame axes (unit vectors)
+    x_axis = np.array([1, 0, 0])
+    y_axis = np.array([0, 1, 0])
+    z_axis = np.array([0, 0, 1])
+    
+    # Rotate the local axes using the rotation matrix
+    x_rot = np.dot(R, x_axis) * scale
+    y_rot = np.dot(R, y_axis) * scale
+    z_rot = np.dot(R, z_axis) * scale
+    
+    # Plot the gripper frame's axes
+    ax.quiver(*origin, *x_rot, color='r', label='X-axis (gripper)', length=scale)
+    ax.quiver(*origin, *y_rot, color='g', label='Y-axis (gripper)', length=scale)
+    ax.quiver(*origin, *z_rot, color='b', label='Z-axis (gripper)', length=scale)
+
+
+
 
 def rotate_y_axis(x_sample, y_sample, z_sample, angle, units="DEGREES"):
     """
@@ -171,25 +309,15 @@ def calculate_tangent_vectors(x_sample, y_sample):
     tangents_y = np.zeros(num_points)
     
     # 对中间点，使用相邻点的差值
-    for i in range(1, num_points - 1):
-        dx = x_sample[i + 1] - x_sample[i - 1]
-        dy = y_sample[i + 1] - y_sample[i - 1]
+    num = len(x_sample)
+    for i in range(0, num_points):
+        s_i = (i+1)%num
+        e_i = i-1
+        dx = x_sample[s_i] - x_sample[e_i]
+        dy = y_sample[s_i] - y_sample[e_i]
         norm = np.sqrt(dx**2 + dy**2)
         tangents_x[i] = dx / norm
         tangents_y[i] = dy / norm
-    
-    # 对第一个点和最后一个点，使用前后的差值
-    tangents_x[0] = x_sample[1] - x_sample[0]
-    tangents_y[0] = y_sample[1] - y_sample[0]
-    norm = np.sqrt(tangents_x[0]**2 + tangents_y[0]**2)
-    tangents_x[0] /= norm
-    tangents_y[0] /= norm
-    
-    tangents_x[-1] = x_sample[-1] - x_sample[-2]
-    tangents_y[-1] = y_sample[-1] - y_sample[-2]
-    norm = np.sqrt(tangents_x[-1]**2 + tangents_y[-1]**2)
-    tangents_x[-1] /= norm
-    tangents_y[-1] /= norm
     
     return tangents_x, tangents_y
 
@@ -204,43 +332,70 @@ def calculate_3d_tangent_vectors(x_sample, y_sample, z_sample):
     返回:
     tangents_x, tangents_y, tangents_z: 3D切线向量的各个分量
     """
-    num_points = len(x_sample)
+    normals_x = np.zeros_like(x_sample)
+    normals_y = np.zeros_like(y_sample)
+    normals_z = np.zeros_like(z_sample)
     
-    # 初始化3D切线向量
-    tangents_x = np.zeros(num_points)
-    tangents_y = np.zeros(num_points)
-    tangents_z = np.zeros(num_points)
+    tangents_x = np.zeros_like(x_sample)
+    tangents_y = np.zeros_like(y_sample)
+    tangents_z = np.zeros_like(z_sample)
     
-    # 对中间点，使用相邻点的差值计算切线向量
-    for i in range(1, num_points - 1):
-        dx = x_sample[i + 1] - x_sample[i - 1]
-        dy = y_sample[i + 1] - y_sample[i - 1]
-        dz = z_sample[i + 1] - z_sample[i - 1]
-        
-        # 归一化向量
+    num = len(x_sample)
+    for i in range(0, num):
+        # 法线：相邻点的差值
+        s_i = (i+1)%num
+        dx = x_sample[s_i] - x_sample[i - 1]
+        dy = y_sample[s_i] - y_sample[i - 1]
+        dz = z_sample[s_i] - z_sample[i - 1]
         norm = np.sqrt(dx**2 + dy**2 + dz**2)
-        tangents_x[i] = dx / norm
-        tangents_y[i] = dy / norm
-        tangents_z[i] = dz / norm
+        normals_x[i] = dx / norm
+        normals_y[i] = dy / norm
+        normals_z[i] = dz / norm
+        
+        tangents_x[i] = -dy
+        tangents_y[i] = dx
+        tangents_z[i] = 0
     
-    # 对第一个点和最后一个点，使用前后点的差值
-    tangents_x[0] = x_sample[1] - x_sample[0]
-    tangents_y[0] = y_sample[1] - y_sample[0]
-    tangents_z[0] = z_sample[1] - z_sample[0]
-    norm = np.sqrt(tangents_x[0]**2 + tangents_y[0]**2 + tangents_z[0]**2)
-    tangents_x[0] /= norm
-    tangents_y[0] /= norm
-    tangents_z[0] /= norm
+    return normals_x, normals_y, normals_z, tangents_x, tangents_y, tangents_z
+
+
+def compute_rpy_with_roll(normals_x, normals_y, normals_z, tangents_x, tangents_y, tangents_z):
+    """
+    根据法线和切线计算每个点的全局滚转 (roll), 俯仰 (pitch), 偏航 (yaw) 角度.
     
-    tangents_x[-1] = x_sample[-1] - x_sample[-2]
-    tangents_y[-1] = y_sample[-1] - y_sample[-2]
-    tangents_z[-1] = z_sample[-1] - z_sample[-2]
-    norm = np.sqrt(tangents_x[-1]**2 + tangents_y[-1]**2 + tangents_z[-1]**2)
-    tangents_x[-1] /= norm
-    tangents_y[-1] /= norm
-    tangents_z[-1] /= norm
+    参数:
+    normals_x, normals_y, normals_z: 法线分量
+    tangents_x, tangents_y, tangents_z: 切线分量
     
-    return tangents_x, tangents_y, tangents_z
+    返回:
+    roll_angles, pitch_angles, yaw_angles: 每个点的roll, pitch, yaw 角度
+    """
+    roll_angles = np.zeros_like(normals_x)
+    pitch_angles = np.zeros_like(normals_x)
+    yaw_angles = np.zeros_like(normals_x)
+    
+    for i in range(len(normals_x)):
+        # Normal vector at each point
+        nx = normals_x[i]
+        ny = normals_y[i]
+        nz = normals_z[i]
+        
+        # 1. Compute pitch (rotation about global y-axis)
+        pitch = np.arctan2(-nz, np.sqrt(nx**2 + ny**2))
+        
+        # 2. Compute yaw (rotation about global z-axis)
+        yaw = np.arctan2(ny, nx)
+        
+        # 3. Compute roll: align the gripper's fingers with the box surface using the tangents
+        tx = tangents_x[i]
+        ty = tangents_y[i]
+        roll = np.arctan2(ty, tx)
+        
+        roll_angles[i] = roll
+        pitch_angles[i] = pitch
+        yaw_angles[i] = yaw
+    
+    return roll_angles, pitch_angles, yaw_angles
 
 def get_trajectory():
     # # 设置矩形和圆角参数
@@ -263,32 +418,43 @@ def get_trajectory():
 
     x_sample, y_sample = rotate_counterclockwise(x_sample, y_sample, 90)
     z_sample = np.zeros(len(x_sample))*height
-    x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, 30)
+    tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
+    initial_yaw = np.arctan2(tangents_y, tangents_x)
+    initial_roll = np.zeros(len(initial_yaw))
+    initial_pitch = np.zeros(len(initial_yaw))
 
-    tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
-    yaw = np.arctan2(tangents_y, tangents_x)
-    pitch = np.arctan2(tangents_z, np.sqrt(tangents_x**2 + tangents_y**2))
-    roll = np.zeros(len(yaw))
+    angle = 45
+    roll_angles, pitch_angles, yaw_angles = rotate_box_y_axis(initial_roll, initial_pitch, initial_yaw, angle)
+    x_sample, y_sample, z_sample = rotate_y_axis(x_sample, y_sample, z_sample, angle)
 
-    fig = plt.figure(figsize=(12, 8))
 
-    # 3D plot for x, y, z points and tangent angles
+    # tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
+    # normals_x, normals_y, normals_z, tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_sample, y_sample, z_sample)
+    # roll_angles, pitch_angles, yaw_angles = compute_rpy_with_roll(normals_x, normals_y, normals_z, tangents_x, tangents_y, tangents_z)
+
+    # 设置 3D 图
+    fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot(x_rot, y_rot, z_rot, label='3D Contour', color='blue', marker='o')
 
-    # Plot the tangent vectors to visualize the directions
-    ax.quiver(
-        x_rot, y_rot, z_rot,  # Starting points of the tangent vectors
-        tangents_x, tangents_y, tangents_z,  # Tangent vector components
-        length=0.5, color='red', label='Tangent Vectors'
-    )
+    # Plot the original surface points
+    ax.scatter(x_sample, y_sample, z_sample, color='black', label='Sample Points')
 
-    # Set labels
+    # 在每个样本点绘制夹爪的坐标系
+    for i in range(len(x_sample)):
+        origin = np.array([x_sample[i], y_sample[i], z_sample[i]])
+        
+        # 计算旋转矩阵
+        R = rotation_matrix(roll_angles[i], pitch_angles[i], yaw_angles[i])
+        
+        # 绘制每个点的夹爪坐标系
+        plot_gripper_frame(ax, origin, R, scale=1)
+
+    # 设置轴标签
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title('3D Points and Tangent Vectors')
-    ax.legend()
+    ax.set_title('Gripper Frames with Roll, Pitch, Yaw')
+    plt.gca().set_aspect('equal', adjustable='box')
 
     plt.show()
 
@@ -481,20 +647,21 @@ class TravleBox:
             x_sample, y_sample = sample_points_from_path(np.flip(self.x_coords), np.flip(self.y_coords), path_steps) # clockwise
             yaw_shift = -math.pi/2
 
-        z_sample = np.zeros(len(x_sample))
-        x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, self.y_rotation)
+        tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
+        initial_yaw = np.arctan2(tangents_y, tangents_x)
+        initial_roll = np.zeros(len(initial_yaw))
+        initial_pitch = np.zeros(len(initial_yaw))
 
-        tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
-        yaw = np.arctan2(tangents_y, tangents_x)
-        pitch = np.arctan2(tangents_z, np.sqrt(tangents_x**2 + tangents_y**2))
-        roll = np.zeros(len(yaw))
+        angle = 45
+        roll, pitch, yaw = rotate_box_y_axis(initial_roll, initial_pitch, initial_yaw, angle)
+        x_sample, y_sample, z_sample = rotate_y_axis(x_sample, y_sample, np.zeros(len(x_sample)), angle)
 
         # tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
         # pan_sample = np.arctan2(tangents_y, tangents_x)
 
-        self.x_sample = x_rot + self.x_box 
-        self.y_sample = y_rot + self.y_box 
-        self.z_sample = z_rot + self.z_box
+        self.x_sample = x_sample + self.x_box 
+        self.y_sample = y_sample + self.y_box 
+        self.z_sample = z_sample + self.z_box
         self.roll_sample = roll
         self.pitch_sample = pitch
         self.yaw_sample = yaw + yaw_shift
@@ -505,5 +672,5 @@ class TravleBox:
 
         # plot(x_sample, y_sample, tangents_x, tangents_y)
 
-# get_trajectory()
-# input()
+get_trajectory()
+input()
