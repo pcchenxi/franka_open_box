@@ -14,15 +14,15 @@ def norm_rotation(rot):
     z_rot = z_rot - twoPI* math.floor((z_rot + math.pi) / twoPI)
     return z_rot
 
-def get_target_idx(start_idx, path_x, path_y, path_pan, robot_x, robot_y, robot_pan):
+def get_target_idx(start_idx, path_x, path_y, path_z, robot_x, robot_y, robot_z):
     threshold_xy, threshold_pan = 0.005, math.pi/180
 
     idx = len(path_x) - 1
     for i in range(start_idx, len(path_x)):
-        x, y, pan = path_x[i], path_y[i], path_pan[i]
-        dist_xy = np.linalg.norm([x-robot_x, y-robot_y])
-        dist_pan = norm_rotation(pan) - robot_pan
-        if dist_xy < threshold_xy and dist_pan < threshold_pan:
+        x, y, z = path_x[i], path_y[i], path_z[i]
+        dist_xyz = np.linalg.norm([x-robot_x, y-robot_y, z-robot_z])
+        # dist_pan = norm_rotation(pan) - robot_pan
+        if dist_xyz < threshold_xy: # and dist_pan < threshold_pan:
             idx = i+1
         else:
             idx = i
@@ -37,31 +37,35 @@ if __name__ == '__main__':
     franka = Franka(args.host)
     franka.set_home_pose()
 
-    travelbox = TravleBox(0.55, 0.3, 0.4, 0.3, 0.03)
+    travelbox = TravleBox(0.6, 0.3, 0.3, 0.4, 0.3, 0.03)
     travelbox.generate_path(direction='counterclockwise') #counterclockwise  clockwise
 
     ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
-    path_x, path_y, path_pan = travelbox.get_path(ee_trans[0], ee_trans[1])
+    path_x, path_y, path_z, path_roll, path_pitch, path_yaw = travelbox.get_path(ee_trans[0], ee_trans[1], ee_trans[2])
+
+    print(path_pitch)
 
     # plt.scatter(travelbox.x_sample[74], travelbox.y_sample[74], color='g', s=50)
     # plt.quiver(travelbox.x_sample, travelbox.y_sample, travelbox.tangents_x, travelbox.tangents_y, scale=20, color='blue', label="切线方向")  # 绘制切线方向
-    plt.scatter(path_x, path_y, color='g', s=5)
+    # plt.scatter(path_x, path_y, color='g', s=5)
     # plt.show()
 
     # ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
     # franka.set_ee_pose_plane(path_x[0], path_y[0], ee_trans[2], path_pan[0])
     # franka.open_gripper()
-    # input('press enter to move')
+
+    print(path_z)
+    input('press enter to move')
     sleep(3)
 
     idx = 0
     while idx != len(path_x) -1:
         ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
-        idx = get_target_idx(idx, path_x, path_y, path_pan, ee_trans[0], ee_trans[1], ee_rpy[2])
-        franka.set_ee_pose_plane(path_x[idx], path_y[idx], ee_trans[2], path_pan[idx])
+        idx = get_target_idx(idx, path_x, path_y, path_z, ee_trans[0], ee_trans[1], ee_trans[2])
+        franka.set_ee_pose_plane(path_x[idx], path_y[idx], path_z[idx], path_roll[idx], path_pitch[idx], path_yaw[idx])
         franka.close_gripper()
 
-        print(idx, path_x[idx], path_y[idx], path_pan[idx])
+        print(idx, path_x[idx], path_y[idx], path_z[idx], np.degrees(path_pitch[idx]), np.degrees(path_yaw[idx]))
 
         # plt.scatter(ee_trans[0], ee_trans[1], color='r', s=5)
         # plt.scatter(path_x[idx], path_y[idx], color='b', s=5)

@@ -6,7 +6,7 @@ from franky import Robot, Gripper
 from franky import Affine, JointWaypointMotion, JointWaypoint, CartesianMotion, ReferenceType, CartesianWaypointMotion, CartesianWaypoint
 
 class Franka:
-    def __init__(self, robot_ip, relative_dynamics_factor=0.2) -> None:
+    def __init__(self, robot_ip, relative_dynamics_factor=0.05) -> None:
         self.robot = Robot(robot_ip)
         self.gripper = Gripper(robot_ip)
         self.robot.relative_dynamics_factor = relative_dynamics_factor
@@ -14,6 +14,11 @@ class Franka:
 
         imp_value = 300
         self.robot.set_joint_impedance([imp_value, imp_value, imp_value, imp_value, imp_value, imp_value, imp_value])
+
+        reset_joint = [0.07237725877102819, -0.8143505166613988, -0.15113935475521537, -2.5729412096546853, -0.05028053215321201, 1.8019384916307615, 0.8581810196212317]
+
+        m1 = JointWaypointMotion([JointWaypoint(reset_joint)])
+        self.robot.move(m1)
 
         # quat = Rotation.from_euler('xyz', [math.pi, 0, -math.pi/4]).as_quat()
 
@@ -39,16 +44,17 @@ class Franka:
         success = self.gripper.move(0.0, 0.02)
 
     def set_home_pose(self):
-        self.robot.relative_dynamics_factor = 0.1
+        # self.robot.relative_dynamics_factor = 0.1
         ee_trans, ee_quat, ee_rpy = self.get_ee_pose()
         home_quat = Rotation.from_euler('xyz', [math.pi, 0, 0]).as_quat()
-        home_xyz = [0.4, 0.3, 0.33]
+        # home_quat = Rotation.from_euler('xyz', [math.pi, -math.pi/4, 0]).as_quat()
+        home_xyz = [0.3, 0.0, 0.4]
 
-        if ee_trans[0] > 0.45:
-            motion = CartesianMotion(Affine([ee_trans[0], -0.2, 0.31], ee_quat))
-            self.robot.move(motion)
-            motion = CartesianMotion(Affine([home_xyz[0], -0.2, 0.31], home_quat))
-            self.robot.move(motion)
+        # if ee_trans[0] > 0.45:
+        #     motion = CartesianMotion(Affine([ee_trans[0], -0.2, 0.31], ee_quat))
+        #     self.robot.move(motion)
+        #     motion = CartesianMotion(Affine([home_xyz[0], -0.2, 0.31], home_quat))
+        #     self.robot.move(motion)
 
         motion = CartesianMotion(Affine(home_xyz, home_quat))
         self.robot.move(motion)
@@ -60,9 +66,9 @@ class Franka:
         motion = CartesianMotion(Affine([0.4, 0.0, 0.3], quat))
         self.robot.move(motion)
 
-    def set_ee_pose_plane(self, x, y, z, pan):
-        z_rot = self.norm_pan(pan)
-        quat = Rotation.from_euler('xyz', [math.pi, 0, z_rot]).as_quat()
+    def set_ee_pose_plane(self, x, y, z, roll, pitch, yaw):
+        z_rot = self.norm_pan(yaw)
+        quat = Rotation.from_euler('xyz', [math.pi, pitch, z_rot]).as_quat()
         motion = CartesianMotion(Affine([x, y, z], quat))
         # print(x, y, pan)
         self.robot.move(motion, asynchronous=True)

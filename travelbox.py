@@ -422,7 +422,7 @@ class TravleBox:
         self.w_box = w_box
         self.h_box = h_box
         self.r_box = r_box
-        self.height = 0.2
+        self.y_rotation = 45
 
         x_coords, y_coords = create_rounded_rectangle_path(self.w_box, self.h_box, self.r_box, num_points_per_arc=50)
         self.x_coords, self.y_coords = rotate_counterclockwise(x_coords, y_coords, 90)
@@ -432,50 +432,57 @@ class TravleBox:
 
     def get_path(self, x_robot=None, y_robot=None, z_robot=None):
         if x_robot is None or y_robot is None:
-            return self.x_sample, self.y_sample, self.z_sample, self.pan_sample
+            return self.x_sample, self.y_sample, self.z_sample, self.roll_sample, self.pitch_sample, self.yaw_sample
 
         start_idx = 0
         min_dist = 99999
         for i in range(self.path_steps):
             x = self.x_sample[i]
             y = self.y_sample[i]
+            z = self.z_sample[i]
 
             diff_x = x_robot - x
             diff_y = y_robot - y
-            dist = np.linalg.norm([diff_x, diff_y])
+            diff_z = z_robot - z
+            dist = np.linalg.norm([diff_x, diff_y, diff_z])
             if dist < min_dist:
                 start_idx = i
                 min_dist = dist
         print('start idx', start_idx, min_dist)
         print(x_robot, y_robot, self.x_sample[start_idx], self.y_sample[start_idx])
 
-        x_path, y_path, pan_path = [], [], []
+        x_path, y_path, z_path = [], [], []
+        roll_path, pitch_path, yaw_path = [], [], []
+        max_x = np.max(self.x_sample)
+
         for i in range(start_idx, start_idx+self.path_steps):
             idx = i%self.path_steps
             x_path.append(self.x_sample[idx])
             y_path.append(self.y_sample[idx])
-            pan_path.append(self.pan_sample[idx])
+            z_path.append(self.z_sample[idx])
+
+            roll_path.append(self.roll_sample[idx])
+            pitch_path.append(self.pitch_sample[idx])
+            yaw_path.append(self.yaw_sample[idx])
 
             # print(self.x_box, self.y_box, self.w_box, self.h_box)
-            if self.x_sample[idx] > (self.x_box+self.h_box/2-(self.r_box*2)):
+            if self.x_sample[idx] > max_x-0.1:
                 print('stop', len(x_path))
                 break
-
-        return np.array(x_path), np.array(y_path), np.array(pan_path)
-
+        return np.array(x_path), np.array(y_path), np.array(z_path), np.array(roll_path), np.array(pitch_path), np.array(yaw_path)
 
     def generate_path(self, path_steps=50, direction='clockwise'):
         self.path_steps = path_steps
 
         if direction == 'counterclockwise':
             x_sample, y_sample = sample_points_from_path(self.x_coords, self.y_coords, path_steps)  # counterclockwise
-            pan_shift = math.pi/2
+            yaw_shift = math.pi/2
         else:
             x_sample, y_sample = sample_points_from_path(np.flip(self.x_coords), np.flip(self.y_coords), path_steps) # clockwise
-            pan_shift = -math.pi/2
+            yaw_shift = -math.pi/2
 
-        z_sample = np.zeros(len(x_sample))*self.height
-        x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, 30)
+        z_sample = np.zeros(len(x_sample))
+        x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, self.y_rotation)
 
         tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
         yaw = np.arctan2(tangents_y, tangents_x)
@@ -485,13 +492,18 @@ class TravleBox:
         # tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
         # pan_sample = np.arctan2(tangents_y, tangents_x)
 
-        self.x_sample = x_sample
-        self.y_sample = y_sample
-        self.pan_sample = pan_sample + pan_shift
-        self.tangents_x = tangents_x
-        self.tangents_y = tangents_y
+        self.x_sample = x_rot + self.x_box 
+        self.y_sample = y_rot + self.y_box 
+        self.z_sample = z_rot + self.z_box
+        self.roll_sample = roll
+        self.pitch_sample = pitch
+        self.yaw_sample = yaw + yaw_shift
+
+        # self.pan_sample = pan_sample + pan_shift
+        # self.tangents_x = tangents_x
+        # self.tangents_y = tangents_y
 
         # plot(x_sample, y_sample, tangents_x, tangents_y)
 
-get_trajectory()
-input()
+# get_trajectory()
+# input()
