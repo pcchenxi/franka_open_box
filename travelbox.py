@@ -4,6 +4,43 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 
+
+def rotate_y_axis(x_sample, y_sample, z_sample, angle, units="DEGREES"):
+    """
+    旋转给定的3D坐标 (x_sample, y_sample, z_sample) 沿y轴旋转w度，返回新的坐标.
+    
+    参数:
+    x_sample, y_sample, z_sample: 初始的3D点坐标
+    angle: 绕y轴旋转的角度（度数）
+    
+    返回:
+    x_rot, y_rot, z_rot: 旋转后的3D坐标
+    """
+    # 将角度从度转换为弧度
+    if units == "DEGREES":
+        w_radians = np.radians(angle)
+    
+    # 计算旋转矩阵的 cos 和 sin
+    cos_w = np.cos(w_radians)
+    sin_w = np.sin(w_radians)
+    
+    # 初始化旋转后的坐标列表
+    x_rot = np.zeros_like(x_sample)
+    y_rot = np.zeros_like(y_sample)
+    z_rot = np.zeros_like(z_sample)
+    
+    # 对每个点应用旋转矩阵
+    for i in range(len(x_sample)):
+        x = x_sample[i]
+        z = z_sample[i]
+        
+        # 旋转后的x' 和 z'
+        x_rot[i] = cos_w * x + sin_w * z
+        y_rot[i] = y_sample[i]  # y 坐标保持不变
+        z_rot[i] = -sin_w * x + cos_w * z
+    
+    return x_rot, y_rot, z_rot
+
 def rotate_counterclockwise(x, y, angle, x_shift=0, y_shift=0, units="DEGREES"):
     """
     Rotates a point in the xy-plane counterclockwise through an angle about the origin
@@ -156,17 +193,67 @@ def calculate_tangent_vectors(x_sample, y_sample):
     
     return tangents_x, tangents_y
 
+
+def calculate_3d_tangent_vectors(x_sample, y_sample, z_sample):
+    """
+    计算每个采样点的3D切线向量 (dx, dy, dz).
+    
+    参数:
+    x_sample, y_sample, z_sample: 3D点的 x, y, z 坐标
+    
+    返回:
+    tangents_x, tangents_y, tangents_z: 3D切线向量的各个分量
+    """
+    num_points = len(x_sample)
+    
+    # 初始化3D切线向量
+    tangents_x = np.zeros(num_points)
+    tangents_y = np.zeros(num_points)
+    tangents_z = np.zeros(num_points)
+    
+    # 对中间点，使用相邻点的差值计算切线向量
+    for i in range(1, num_points - 1):
+        dx = x_sample[i + 1] - x_sample[i - 1]
+        dy = y_sample[i + 1] - y_sample[i - 1]
+        dz = z_sample[i + 1] - z_sample[i - 1]
+        
+        # 归一化向量
+        norm = np.sqrt(dx**2 + dy**2 + dz**2)
+        tangents_x[i] = dx / norm
+        tangents_y[i] = dy / norm
+        tangents_z[i] = dz / norm
+    
+    # 对第一个点和最后一个点，使用前后点的差值
+    tangents_x[0] = x_sample[1] - x_sample[0]
+    tangents_y[0] = y_sample[1] - y_sample[0]
+    tangents_z[0] = z_sample[1] - z_sample[0]
+    norm = np.sqrt(tangents_x[0]**2 + tangents_y[0]**2 + tangents_z[0]**2)
+    tangents_x[0] /= norm
+    tangents_y[0] /= norm
+    tangents_z[0] /= norm
+    
+    tangents_x[-1] = x_sample[-1] - x_sample[-2]
+    tangents_y[-1] = y_sample[-1] - y_sample[-2]
+    tangents_z[-1] = z_sample[-1] - z_sample[-2]
+    norm = np.sqrt(tangents_x[-1]**2 + tangents_y[-1]**2 + tangents_z[-1]**2)
+    tangents_x[-1] /= norm
+    tangents_y[-1] /= norm
+    tangents_z[-1] /= norm
+    
+    return tangents_x, tangents_y, tangents_z
+
 def get_trajectory():
     # # 设置矩形和圆角参数
     x_box, y_box = 0.4, 0  # 矩形的中心
     w_box, h_box = 40, 20  # 矩形的宽度和高度
+    height = 20
     r_box = 2  # 圆角半径
     direction = 'clockwise'
     num_sample_points = 100
+    tangent_angles = 0
 
     # 生成圆角矩形的所有点
     x_coords, y_coords = create_rounded_rectangle_path(w_box, h_box, r_box, num_points_per_arc=50)
-    x_coords, y_coords = rotate_counterclockwise(x_coords, y_coords, 90)
 
     # 从轨迹中采样点
     if direction == 'clockwise':
@@ -174,29 +261,77 @@ def get_trajectory():
     else:
         x_sample, y_sample = sample_points_from_path(np.flip(x_coords), np.flip(y_coords), num_sample_points) # counterclockwise
 
-    tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
-    tangent_angles = np.arctan2(tangents_y, tangents_x)
+    x_sample, y_sample = rotate_counterclockwise(x_sample, y_sample, 90)
+    z_sample = np.zeros(len(x_sample))*height
+    x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, 30)
+
+    tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
+    yaw = np.arctan2(tangents_y, tangents_x)
+    pitch = np.arctan2(tangents_z, np.sqrt(tangents_x**2 + tangents_y**2))
+    roll = np.zeros(len(yaw))
+
+    fig = plt.figure(figsize=(12, 8))
+
+    # 3D plot for x, y, z points and tangent angles
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(x_rot, y_rot, z_rot, label='3D Contour', color='blue', marker='o')
+
+    # Plot the tangent vectors to visualize the directions
+    ax.quiver(
+        x_rot, y_rot, z_rot,  # Starting points of the tangent vectors
+        tangents_x, tangents_y, tangents_z,  # Tangent vector components
+        length=0.5, color='red', label='Tangent Vectors'
+    )
+
+    # Set labels
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('3D Points and Tangent Vectors')
+    ax.legend()
+
+    plt.show()
+
+
+
+    # for y,p,r in zip(roll, pitch, yaw):
+    #     print(y,p,r)
+
+    # orientations = compute_gripper_orientation(x_rot, y_rot, z_rot)
+    # draw_gripper_orientation(x_rot, y_rot, z_rot, orientations)
+    # print(orientations)
+
+    # plot_3d(x_sample, y_sample, z_sample, x_rot, y_rot, z_rot)
+    # tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
+    # tangent_angles = np.arctan2(tangents_y, tangents_x)
     # tangent_angles_degrees = np.degrees(tangent_angles)
 
-    # 绘制采样后的点
-    plt.figure(figsize=(10, 10))
-    plt.plot(x_coords, y_coords, label="原始轨迹")
-    # plt.scatter(x_sample[70:], y_sample[70:], color='red', s=10, label="采样点")
-    # plt.scatter(x_sample_cc[70:], y_sample_cc[70:], color='b', s=10, label="采样点")
-    plt.scatter(x_sample[0], y_sample[0], color='r', s=50)
-    plt.scatter(x_sample[79], y_sample[79], color='g', s=50)
+    # # 绘制采样后的点
+    # plt.figure(figsize=(10, 10))
+    # # plt.plot(x_coords, y_coords, label="原始轨迹")
+    # # # plt.scatter(x_sample[70:], y_sample[70:], color='red', s=10, label="采样点")
+    # # # plt.scatter(x_sample_cc[70:], y_sample_cc[70:], color='b', s=10, label="采样点")
+    # # plt.scatter(x_sample[0], y_sample[0], color='r', s=50)
+    # # plt.scatter(x_sample[79], y_sample[79], color='g', s=50)
 
-    plt.quiver(x_sample, y_sample, tangents_x, tangents_y, scale=20, color='blue', label="切线方向")  # 绘制切线方向
-    # for i in range(0, len(x_sample), 5):  # 每隔 10 个点显示角度
-        # plt.text(x_sample[i], y_sample[i], f'{tangent_angles_degrees[i]:.1f}°', fontsize=8, color='green')
+    # # plt.quiver(x_sample, y_sample, tangents_x, tangents_y, scale=20, color='blue', label="切线方向")  # 绘制切线方向
+    # # # for i in range(0, len(x_sample), 5):  # 每隔 10 个点显示角度
+    # #     # plt.text(x_sample[i], y_sample[i], f'{tangent_angles_degrees[i]:.1f}°', fontsize=8, color='green')
 
-    plt.title("从圆角矩形中均匀采样点")
-    plt.xlabel("X坐标")
-    plt.ylabel("Y坐标")
-    plt.legend()
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.grid(True)
-    plt.show()
+    # plt.scatter(x_sample, y_sample, z_sample, color='blue', label='Original Points')
+    # plt.plot(x_sample, y_sample, z_sample, color='blue', linestyle='--')
+
+    # # 绘制旋转后的点
+    # plt.scatter(x_rot, y_rot, z_rot, color='red', label='Rotated Points')
+    # plt.plot(x_rot, y_rot, z_rot, color='red', linestyle='--')
+
+    # plt.title("从圆角矩形中均匀采样点")
+    # plt.xlabel("X坐标")
+    # plt.ylabel("Y坐标")
+    # plt.legend()
+    # plt.gca().set_aspect('equal', adjustable='box')
+    # plt.grid(True)
+    # plt.show()
 
     return x_sample, y_sample, tangent_angles
 
@@ -220,24 +355,84 @@ def plot(x_sample, y_sample, tangents_x, tangents_y):
     plt.grid(True)
     plt.show()
 
+def plot_3d(x_sample, y_sample, z_sample, x_rot, y_rot, z_rot):
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # 绘制原始点
+    ax.scatter(x_sample, y_sample, z_sample, color='blue', label='Original Points')
+    ax.plot(x_sample, y_sample, z_sample, color='blue', linestyle='--')
+
+    # 绘制旋转后的点
+    ax.scatter(x_rot, y_rot, z_rot, color='red', label='Rotated Points')
+    ax.plot(x_rot, y_rot, z_rot, color='red', linestyle='--')
+
+    # 添加图例和标题
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title(f'3D Rotation Around Y-axis by {45} Degrees')
+    ax.legend()
+
+    plt.show()    
+
+
+def draw_gripper_orientation(x_rot, y_rot, z_rot, orientations):
+    """
+    绘制机械手末端执行器的姿态（用欧拉角表示的方向）在每个采样点上的向量。
+    
+    参数:
+    x_rot, y_rot, z_rot: 旋转后的箱子轮廓的3D坐标
+    orientations: 每个点的欧拉角姿态
+    """
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # 绘制原始点
+    ax.scatter(x_rot, y_rot, z_rot, color='blue', label='Box Contour')
+    ax.plot(x_rot, y_rot, z_rot, color='blue', linestyle='--')
+    
+    # 绘制每个点的姿态方向
+    for i in range(1, len(orientations)):
+        yaw, pitch, roll = orientations[i - 1]
+        
+        # 将欧拉角转换为向量 (简单起见，用单位向量表示方向)
+        dx = np.cos(yaw) * np.cos(pitch)
+        dy = np.sin(pitch)
+        dz = np.sin(yaw) * np.cos(pitch)
+        
+        # 绘制姿态向量
+        ax.quiver(x_rot[i], y_rot[i], z_rot[i], dx, dy, dz, length=0.5, color='red')
+    
+    # 设置标签
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Gripper Orientation Vectors on Rotated Box Contour')
+    ax.legend()
+    
+    plt.show()
+
 
 class TravleBox:
-    def __init__(self, x_box, y_box, w_box, h_box, r_box=0.1) -> None:
+    def __init__(self, x_box, y_box, z_box, w_box, h_box, r_box=0.1) -> None:
         self.x_box = x_box
         self.y_box = y_box
+        self.z_box = z_box
         self.w_box = w_box
         self.h_box = h_box
         self.r_box = r_box
+        self.height = 0.2
 
         x_coords, y_coords = create_rounded_rectangle_path(self.w_box, self.h_box, self.r_box, num_points_per_arc=50)
         self.x_coords, self.y_coords = rotate_counterclockwise(x_coords, y_coords, 90)
 
-        self.x_coords += self.x_box
-        self.y_coords += self.y_box
+        # self.x_coords += self.x_box
+        # self.y_coords += self.y_box
 
-    def get_path(self, x_robot=None, y_robot=None):
+    def get_path(self, x_robot=None, y_robot=None, z_robot=None):
         if x_robot is None or y_robot is None:
-            return self.x_sample, self.y_sample, self.pan_sample
+            return self.x_sample, self.y_sample, self.z_sample, self.pan_sample
 
         start_idx = 0
         min_dist = 99999
@@ -279,8 +474,16 @@ class TravleBox:
             x_sample, y_sample = sample_points_from_path(np.flip(self.x_coords), np.flip(self.y_coords), path_steps) # clockwise
             pan_shift = -math.pi/2
 
-        tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
-        pan_sample = np.arctan2(tangents_y, tangents_x)
+        z_sample = np.zeros(len(x_sample))*self.height
+        x_rot, y_rot, z_rot = rotate_y_axis(x_sample, y_sample, z_sample, 30)
+
+        tangents_x, tangents_y, tangents_z = calculate_3d_tangent_vectors(x_rot, y_rot, z_rot)
+        yaw = np.arctan2(tangents_y, tangents_x)
+        pitch = np.arctan2(tangents_z, np.sqrt(tangents_x**2 + tangents_y**2))
+        roll = np.zeros(len(yaw))
+
+        # tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
+        # pan_sample = np.arctan2(tangents_y, tangents_x)
 
         self.x_sample = x_sample
         self.y_sample = y_sample
@@ -290,4 +493,5 @@ class TravleBox:
 
         # plot(x_sample, y_sample, tangents_x, tangents_y)
 
-# get_trajectory()
+get_trajectory()
+input()
