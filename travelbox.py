@@ -419,9 +419,10 @@ def get_trajectory():
     x_sample, y_sample = rotate_counterclockwise(x_sample, y_sample, 90)
     z_sample = np.zeros(len(x_sample))*height
     tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
-    initial_yaw = np.arctan2(tangents_y, tangents_x)
-    initial_roll = np.zeros(len(initial_yaw))
+    
+    initial_roll = np.zeros(len(initial_yaw))+math.pi
     initial_pitch = np.zeros(len(initial_yaw))
+    initial_yaw = np.arctan2(tangents_y, tangents_x)
 
     angle = 45
     roll_angles, pitch_angles, yaw_angles = rotate_box_y_axis(initial_roll, initial_pitch, initial_yaw, angle)
@@ -588,7 +589,7 @@ class TravleBox:
         self.w_box = w_box
         self.h_box = h_box
         self.r_box = r_box
-        self.y_rotation = 45
+        self.y_rotation = 30
 
         x_coords, y_coords = create_rounded_rectangle_path(self.w_box, self.h_box, self.r_box, num_points_per_arc=50)
         self.x_coords, self.y_coords = rotate_counterclockwise(x_coords, y_coords, 90)
@@ -648,13 +649,12 @@ class TravleBox:
             yaw_shift = -math.pi/2
 
         tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
-        initial_yaw = np.arctan2(tangents_y, tangents_x)
+        initial_yaw = np.arctan2(tangents_y, tangents_x) + yaw_shift
         initial_roll = np.zeros(len(initial_yaw))
         initial_pitch = np.zeros(len(initial_yaw))
 
-        angle = 45
-        roll, pitch, yaw = rotate_box_y_axis(initial_roll, initial_pitch, initial_yaw, angle)
-        x_sample, y_sample, z_sample = rotate_y_axis(x_sample, y_sample, np.zeros(len(x_sample)), angle)
+        roll, pitch, yaw = rotate_box_y_axis(initial_roll, initial_pitch, initial_yaw, self.y_rotation)
+        x_sample, y_sample, z_sample = rotate_y_axis(x_sample, y_sample, np.zeros(len(x_sample)), self.y_rotation)
 
         # tangents_x, tangents_y = calculate_tangent_vectors(x_sample, y_sample)
         # pan_sample = np.arctan2(tangents_y, tangents_x)
@@ -664,7 +664,7 @@ class TravleBox:
         self.z_sample = z_sample + self.z_box
         self.roll_sample = roll
         self.pitch_sample = pitch
-        self.yaw_sample = yaw + yaw_shift
+        self.yaw_sample = yaw
 
         # self.pan_sample = pan_sample + pan_shift
         # self.tangents_x = tangents_x
@@ -672,5 +672,5 @@ class TravleBox:
 
         # plot(x_sample, y_sample, tangents_x, tangents_y)
 
-get_trajectory()
-input()
+# get_trajectory()
+# input()

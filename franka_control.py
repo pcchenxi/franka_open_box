@@ -15,7 +15,7 @@ def norm_rotation(rot):
     return z_rot
 
 def get_target_idx(start_idx, path_x, path_y, path_z, robot_x, robot_y, robot_z):
-    threshold_xy, threshold_pan = 0.005, math.pi/180
+    threshold_xy, threshold_pan = 0.01, math.pi/180
 
     idx = len(path_x) - 1
     for i in range(start_idx, len(path_x)):
@@ -37,40 +37,39 @@ if __name__ == '__main__':
     franka = Franka(args.host)
     franka.set_home_pose()
 
-    travelbox = TravleBox(0.6, 0.3, 0.3, 0.4, 0.3, 0.03)
+    travelbox = TravleBox(0.5, 0.3, 0.4, 0.52, 0.4, 0.05)  # 0.5 0.375
     travelbox.generate_path(direction='counterclockwise') #counterclockwise  clockwise
 
     ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
     path_x, path_y, path_z, path_roll, path_pitch, path_yaw = travelbox.get_path(ee_trans[0], ee_trans[1], ee_trans[2])
-
-    print(path_pitch)
+    franka.set_ee_pose_plane(path_x[0]-0.05, path_y[0], path_z[0], path_roll[0], path_pitch[0], path_yaw[0])
+    franka.open_gripper()
+    input('press enter to move')
+    sleep(3)
+    franka.set_ee_pose_plane(path_x[0], path_y[0], path_z[0], path_roll[0], path_pitch[0], path_yaw[0], asynchronous=False)
+    franka.close_gripper()
 
     # plt.scatter(travelbox.x_sample[74], travelbox.y_sample[74], color='g', s=50)
     # plt.quiver(travelbox.x_sample, travelbox.y_sample, travelbox.tangents_x, travelbox.tangents_y, scale=20, color='blue', label="切线方向")  # 绘制切线方向
     # plt.scatter(path_x, path_y, color='g', s=5)
     # plt.show()
 
-    # ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
-    # franka.set_ee_pose_plane(path_x[0], path_y[0], ee_trans[2], path_pan[0])
-    # franka.open_gripper()
-
-    print(path_z)
-    input('press enter to move')
-    sleep(3)
-
     idx = 0
     while idx != len(path_x) -1:
         ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
         idx = get_target_idx(idx, path_x, path_y, path_z, ee_trans[0], ee_trans[1], ee_trans[2])
-        franka.set_ee_pose_plane(path_x[idx], path_y[idx], path_z[idx], path_roll[idx], path_pitch[idx], path_yaw[idx])
-        franka.close_gripper()
 
-        print(idx, path_x[idx], path_y[idx], path_z[idx], np.degrees(path_pitch[idx]), np.degrees(path_yaw[idx]))
+        print(idx, path_x[idx], path_y[idx], path_z[idx])
+        print(idx, np.degrees(path_roll[idx]), np.degrees(path_pitch[idx]), np.degrees(path_yaw[idx]))
+        # input()
+
+
+        franka.set_ee_pose_plane(path_x[idx], path_y[idx], path_z[idx], path_roll[idx], path_pitch[idx], path_yaw[idx])
+        # franka.close_gripper()
 
         # plt.scatter(ee_trans[0], ee_trans[1], color='r', s=5)
         # plt.scatter(path_x[idx], path_y[idx], color='b', s=5)
-        sleep(0.01)
-
+        sleep(0.015)
     # sleep(0.5)
     franka.robot.join_motion()
     franka.open_gripper()

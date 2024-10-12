@@ -21,7 +21,7 @@ if __name__ == '__main__':
         ee_rpy = Rotation.from_quat(quaternion).as_euler('xyz')
         print()
         print(translation)
-        print(ee_rpy, np.degrees(ee_rpy))
+        print('degree:', ee_rpy, np.degrees(ee_rpy))
         # print('\nPose: ', robot_pose.end_effector_pose)
         # print('O_TT_E: ', state.O_T_EE)
         print('Joints: ', state.q)
