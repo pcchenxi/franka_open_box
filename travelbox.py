@@ -633,7 +633,7 @@ class TravleBox:
             yaw_path.append(self.yaw_sample[idx])
 
             # print(self.x_box, self.y_box, self.w_box, self.h_box)
-            if self.x_sample[idx] > max_x-0.1:
+            if self.x_sample[idx] > max_x-0.08:
                 print('stop', len(x_path))
                 break
         return np.array(x_path), np.array(y_path), np.array(z_path), np.array(roll_path), np.array(pitch_path), np.array(yaw_path)

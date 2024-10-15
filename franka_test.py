@@ -4,6 +4,7 @@ robot = Robot("172.16.3.1")
 gripper = Gripper("172.16.3.1")
 
 gripper.open(0.02)
+# gripper.move(0.0, 0.02)
 
 
 # robot.relative_dynamics_factor = 0.05

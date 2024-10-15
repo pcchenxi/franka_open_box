@@ -37,7 +37,7 @@ if __name__ == '__main__':
     franka = Franka(args.host)
     franka.set_home_pose()
 
-    travelbox = TravleBox(0.5, 0.3, 0.4, 0.52, 0.4, 0.05)  # 0.5 0.375
+    travelbox = TravleBox(0.495, 0.3, 0.4, 0.54, 0.4, 0.03)  # 0.5 0.375
     travelbox.generate_path(direction='counterclockwise') #counterclockwise  clockwise
 
     ee_trans, ee_quat, ee_rpy = franka.get_ee_pose()
