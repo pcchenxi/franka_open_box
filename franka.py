@@ -15,11 +15,6 @@ class Franka:
         imp_value = 800
         self.robot.set_joint_impedance([imp_value, imp_value, imp_value, imp_value, imp_value, imp_value, imp_value])
 
-        reset_joint = [0.07237725877102819, -0.8143505166613988, -0.15113935475521537, -2.5729412096546853, -0.05028053215321201, 1.8019384916307615, 0.8581810196212317]
-
-        m1 = JointWaypointMotion([JointWaypoint(reset_joint)])
-        self.robot.move(m1)
-
         # quat = Rotation.from_euler('xyz', [math.pi, 0, -math.pi/4]).as_quat()
 
         # m9 = CartesianWaypointMotion([
@@ -29,6 +24,10 @@ class Franka:
         #     CartesianWaypoint(Affine([0.4, 0.2, 0.4], quat))
         # ])
         # self.robot.move(m9, asynchronous=False)
+    def set_default_pose(self):
+        reset_joint = [0.07237725877102819, -0.8143505166613988, -0.15113935475521537, -2.5729412096546853, -0.05028053215321201, 1.8019384916307615, 0.8581810196212317]
+        m1 = JointWaypointMotion([JointWaypoint(reset_joint)])
+        self.robot.move(m1)
 
     def norm_pan(self, pan):
         # # z_rot = -math.pi/4 + pan
@@ -83,3 +82,7 @@ class Franka:
         # quat = Rotation.from_euler('xyz', [math.pi, 0, 0]).as_quat()
         # rpy = Rotation.from_quat().as_euler('xyz')
         return ee_trans, ee_quat, ee_rpy
+    
+    def move_ee(self, translation, quaternion, asynchronous=False):
+        motion = CartesianMotion(Affine(translation, quaternion))
+        self.robot.move(motion, asynchronous=asynchronous)
