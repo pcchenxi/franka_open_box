@@ -67,7 +67,9 @@ if __name__ == '__main__':
     trans_list, quat_list = data['translation'], data['rotation']
 
     first_translation = trans_list[0]
-    first_quaternion = R.from_euler('xyz', [0, 0, np.pi/2]).as_quat()
+    gripper_quat = R.from_quat(quat_list[0]).as_euler('xyz')
+    first_quaternion = R.from_euler('xyz', [0, 0, gripper_quat[2]]).as_quat()
+    # first_quaternion = R.from_euler('xyz', [0, 0, np.pi/2]).as_quat()
 
     inv_first_translation, inv_first_quaternion = invert_pose(first_translation, first_quaternion)
     
